@@ -46,8 +46,6 @@ def parse_text(text_block: dict) -> str:
                 parse += [spans_block["spans"][0]["text"]]
             else:
                 parse += spans_block["spans"]
-        
-
 
     return " ".join(parse)
 
@@ -70,16 +68,14 @@ def slice_for_word(lista:list[str|int] ,word:str)->list[list[str|int]]:
             return [lista[:i],lista[i:]]
 
 
-def obtain_rbd_name(list_data: list) -> dict:
-    search_data = {"RBD": None,
-                   "Nombre Escuela": None}
+def obtain_rbd_name(list_data: list) -> int:
+    search_data = 0
 
     for data in list_data:
         if "RBD" in str(data):
             _, aux = data.split(":")
             aux, _ = aux.split("|")
-            search_data["RBD"] = int(aux[:5])
-            search_data["Nombre Escuela"] = aux[6:]
+            search_data += int(aux[:5])
             break
     else:
         assert False, "No existe o no se encuentra el RBD en el listado."
@@ -87,28 +83,16 @@ def obtain_rbd_name(list_data: list) -> dict:
     return search_data
 
 
-def obtain_month_course(list_data: list) -> dict:
-    search_data = {"Mes": None,
-                   "Año": None,
-                   "Curso": None}
+def obtain_month_course(list_data: list) -> str:
+    search_data = ""
 
     for data in list_data:
         if 'Año Declaración' in str(data):
             aux = data.split(" ")
-            search_data["Mes"] = aux[2]
-            search_data["Año"] = aux[3]
+            search_data += aux[2]
             break
     else:
         assert False, "No existe o no se encuentra el Mes y Año en el listado."
-
-    for data in list_data:
-        if 'Enseñanza' in str(data):
-            _, aux = data.split("[")
-            aux, _ = aux.split("]")
-            search_data["Curso"] = aux
-            break
-    else:
-        assert False, "No existe o no se encuentra el Curso en el listado."
 
     return search_data
 
@@ -120,7 +104,7 @@ def standard_table(list_data: list[str|int]) -> dict[str,np.ndarray[int]]:
     meta_data = []
     i = 0
     while i < len(raw_data):
-        element: list[str|int] = raw_data[i]
+        element: list[str] = raw_data[i]
         if element != []:
             if element[0].isnumeric() or element[0] in ["-1","-2","-3"]:
                 if len(element) == 1:
@@ -150,60 +134,46 @@ def standard_table(list_data: list[str|int]) -> dict[str,np.ndarray[int]]:
 
 def extract_info_table(dict_tabla: dict[str,np.ndarray[int]], doc_month: str) -> pd.DataFrame:
 
-    df = pd.DataFrame(dict_tabla).reset_index()
+    df = pd.DataFrame(dict_tabla)
     
     if np.unique(df.count().to_numpy()).shape[0] == 1:
-        
-        df = df.T
+
+        df = df.T.reset_index()
         df.columns = np.array(["Alumno"]+[date(2022, 4, 1)+timedelta(days=i)
                               for i in range(PARSE_STR_MONTH_TO_DATA[doc_month][1])])
     return df
 
 
-def parse_format1(doc_pdf: fitz.Document) -> pd.DataFrame:
-
-    list_blocks = get_info_in_blocks(doc_pdf)
-
-    parse_blocks(list_blocks)
-
-    list_data = split_info_template(TEMPLATE_FORM_1, list_blocks)
-
-    data = obtain_month_course(list_data[1])
-
-    data.update(obtain_rbd_name(list_data[0]))
-
-    clean_table(list_data[2])
-
-    table = extract_info_table(list_data[2], data["Mes"])
-
-    return table.assign(RBD=data["RBD"])
-
-
-def parse_format2(doc_pdf: fitz.Document, rbd: int) -> pd.DataFrame:
-
-    list_blocks = get_info_in_blocks(doc_pdf)
-    print(0)
-    parse_blocks(list_blocks)
-    print(1)
-    part_month, table = slice_for_word(list_blocks,"Alumnos")
-    print(2)
-    data = obtain_month_course(part_month)
-    print(3)
-    metadata_dict = standard_table(table)
-    print(4)
-    table = extract_info_table(metadata_dict, data["mes"].title())
-    print(5)
-    return table.assign(RBD=rbd)
-
-
-def parse_format3(doc_pdf: fitz.Document, rbd: int, mes: str) -> pd.DataFrame:
-
-    list_blocks = get_info_in_blocks(doc_pdf)
-
-    parse_blocks(list_blocks)
+def parse_format1(list_blocks_parsed:list[str|int]) -> pd.DataFrame:
     
-    metadata_dict = standard_table(list_blocks)
+    print(0)
+
+    list_rbd, list_format2 = slice_for_word(list_blocks_parsed,"Detalle")
+    print(1)
+
+    rbd = obtain_rbd_name(list_rbd)
+    print(2)
+
+    return parse_format2(list_format2,rbd)
+
+
+def parse_format2(list_blocks_parsed: list[str|int], rbd: int) -> pd.DataFrame:
+
+    list_month, table = slice_for_word(list_blocks_parsed,"Alumnos")
+    print(3)
+    month = obtain_month_course(list_month)
+    print(4)
+    return parse_format3(table,rbd,month)
+
+
+def parse_format3(list_blocks_parsed: list[str|int], rbd: int, mes: str) -> pd.DataFrame:
+   
+    metadata_dict = standard_table(list_blocks_parsed)
+    
+    print(5)
     
     table = extract_info_table(metadata_dict, mes.title())
 
+    print(6)
+    
     return table.assign(RBD=rbd)
