@@ -1,0 +1,47 @@
+Función get_usuario_id (tabla_asistencia, tabla_id)
+
+// La tabla_asistencia es el excel con las asistencias de cada alumno.
+// La tabla_id es el excel de los alumnos con sus id de usuario.
+//
+// Este algoritmo sirve para asignar a cada nombre de la tabla_asistencia
+// un id de usuario de la tabla_id.
+
+    Para Cada rbd único de tabla_asistencia
+
+        list_alumnos_asistencia <-  lista de los nombres de los alumnos obtenida 
+                                    al filtrar por el rbd en la tabla_asistencia
+
+        list_alumnos_id <-  lista de los nombres de los alumnos obtenida
+                            al filtrar por el rbd en la tabla_id
+
+        // Los nombres son completos y están estructurados en apellido paterno,
+        // apellido materno y nombres.
+        
+        // Creamos una matriz que cruza cada nombre de la lista
+        // de alumnos con la lista de nombres de asistencia y obtenemos el error de cada par de nombres
+
+        Para cada i <- 0 Hasta n <- |list_alumnos_asistencia| hacer
+
+            nombre_asist <- list_alumnos_asistencia_i
+
+            Para cada j <- 0 Hasta m <- |list_alumnos_id| hacer
+
+                nombre_id <- list_alumnos_id_j
+
+                // Calculamos el error (Se usa la distancia de Levenshtein) entre palabras
+
+                matriz[i][j] <- error_palabras(nombre_id, nombre_asist)
+        
+        // Obtenemos la mejor combinación (denotada como una lista de un pares de nombres) entre palabras 
+        // de ambos listados tal que se minimice el error. Que será calculada como la suma 
+        // de los errores entre los pares de nombres (Fuerza Bruta -> revisar en un curso de 30 alumnos
+        // 30! combinaciones )
+
+        best_comb <- mejor_combinacion(matriz)
+        
+        // Teniendo la combinación que minimiza el error de las palabras,
+        // obtenemos los ids de usuario de cada alumno
+
+
+
+
