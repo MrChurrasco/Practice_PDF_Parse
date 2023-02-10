@@ -25,14 +25,15 @@ def name_image(image_bin: str) -> str:
     for key, value in imagenes.images.items():
         if image_bin in value:
             return key
+    else:
+        return ""
 
-
-def parse_image(image_block: dict) -> list:
+def parse_image(image_block: dict) -> str|int:
 
     image_bin = image_block["image"]
 
     name = name_image(image_bin)
-       
+
     return PARSE_TABLE.get(name, "")
 
 
@@ -54,18 +55,20 @@ def parse_blocks(list_blocks: list) -> None:
 
     for i, block in enumerate(list_blocks):
         if "image" in block.keys():
-            list_blocks[i] = parse_image(block)
+            aux = parse_image(block)
+            list_blocks[i] = aux
+            if aux == "":
+                print(block["image"])
         else:
             list_blocks[i] = parse_text(block)
 
 
-
-def slice_for_word(lista:list[str|int] ,word:str)->list[list[str|int]]:
+def slice_for_word(lista: list[str | int], word: str) -> list[list[str | int]]:
     for i, value in enumerate(lista):
         if type(value) == int:
             continue
         if word in value:
-            return [lista[:i],lista[i:]]
+            return [lista[:i], lista[i:]]
 
 
 def obtain_rbd_name(list_data: list) -> int:
@@ -97,45 +100,61 @@ def obtain_month_course(list_data: list) -> str:
     return search_data
 
 
-def standard_table(list_data: list[str|int]) -> dict[str,np.ndarray[int]]:
+def standard_table(list_data: list[str | int], mes: str) -> dict[str, np.ndarray]:
 
     # Clean list data of unless data
-    raw_data = list(map(lambda x: str(x).split(), list_data))
-    meta_data = []
-    i = 0
-    while i < len(raw_data):
-        element: list[str] = raw_data[i]
-        if element != []:
-            if element[0].isnumeric() or element[0] in ["-1","-2","-3"]:
-                if len(element) == 1:
-                    meta_data.append(int(element[0]))
-                elif element[1].isalpha():
-                    meta_data.append(" ".join(element[1:]))
-        i += 1
-        
-    dict_tabla: dict[str, np.ndarray] = dict()
-    list_aux: list[int] = []
-    key_aux: str = ""
-    for value in meta_data:
-        if type(value) == int:
-            list_aux.append(value)
-        elif type(value) == str:
-            if key_aux == "":
-                key_aux = value
+    a = " ".join(list(map(lambda x: " ".join(x), list_data))).split()
+
+    # Encuentra donde inicia los datos de la tabla
+    idx = 1
+    c = 0
+    for i, value in enumerate(a):
+        if value.isnumeric() and a[i+1].isalpha():
+            if int(value) == idx:
+                c += i
+                break
+
+    matrix_dict: dict[str, np.ndarray] = {}
+    name: list[str] = []
+    data: list[int] = []
+    metadata: int = 0
+    idx: int = 1
+
+    for element in a[c:]:
+        if len(name) == 0:
+            # element o es el nombre o el indice
+            if element.isalpha():
+                name.append(element)
             else:
-                dict_tabla[key_aux] = np.array(list_aux.copy(), dtype="int8")
-                list_aux.clear()
-                key_aux = value
-    for key, value in dict_tabla.items():
-        dict_tabla[key] = np.delete(value,-1)
-    return dict_tabla
+                # element es el indice
+                if idx != int(element):
+                    # No hay más datos que extraer en la tabla
+                    break
+        else:
+            if len(data) == PARSE_STR_MONTH_TO_DATA[mes][1]:
+                matrix_dict[" ".join(name.copy())] = np.array(data.copy())
+                name = []
+                data = []
+                idx += 1
+                metadata = 0
+                # Hay elementos que faltan por extraer
+            elif len(element) == 1 and element.isnumeric():
+                # es "1" o "0"
+                data.append(int(element))
+                metadata += int(element)
+
+            elif element[1:].isnumeric():
+                data.append(int(element))
+            else:
+                name.append(element)
     # List data clean
+    return matrix_dict
 
 
-def extract_info_table(dict_tabla: dict[str,np.ndarray[int]], doc_month: str) -> pd.DataFrame:
+def extract_info_table(dict_tabla: dict[str, np.ndarray[int]], doc_month: str) -> pd.DataFrame:
 
     df = pd.DataFrame(dict_tabla)
-    
+
     if np.unique(df.count().to_numpy()).shape[0] == 1:
 
         df = df.T.reset_index()
@@ -144,36 +163,36 @@ def extract_info_table(dict_tabla: dict[str,np.ndarray[int]], doc_month: str) ->
     return df
 
 
-def parse_format1(list_blocks_parsed:list[str|int]) -> pd.DataFrame:
-    
+def parse_format1(list_blocks_parsed: list[str | int]) -> pd.DataFrame:
+
     print(0)
 
-    list_rbd, list_format2 = slice_for_word(list_blocks_parsed,"Detalle")
+    list_rbd, list_format2 = slice_for_word(list_blocks_parsed, "Detalle")
     print(1)
 
     rbd = obtain_rbd_name(list_rbd)
     print(2)
 
-    return parse_format2(list_format2,rbd)
+    return parse_format2(list_format2, rbd)
 
 
-def parse_format2(list_blocks_parsed: list[str|int], rbd: int) -> pd.DataFrame:
+def parse_format2(list_blocks_parsed: list[str | int], rbd: int) -> pd.DataFrame:
 
-    list_month, table = slice_for_word(list_blocks_parsed,"Alumnos")
+    list_month, table = slice_for_word(list_blocks_parsed, "Alumnos")
     print(3)
     month = obtain_month_course(list_month)
     print(4)
-    return parse_format3(table,rbd,month)
+    return parse_format3(table, rbd, month)
 
 
-def parse_format3(list_blocks_parsed: list[str|int], rbd: int, mes: str) -> pd.DataFrame:
-   
-    metadata_dict = standard_table(list_blocks_parsed)
-    
+def parse_format3(list_blocks_parsed: list[str | int], rbd: int, mes: str) -> pd.DataFrame:
+
+    metadata_dict = standard_table(list_blocks_parsed, mes.title())
+
     print(5)
-    
+
     table = extract_info_table(metadata_dict, mes.title())
 
     print(6)
-    
+
     return table.assign(RBD=rbd)
