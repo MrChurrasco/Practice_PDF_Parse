@@ -57,8 +57,8 @@ def parse_blocks(list_blocks: list) -> None:
         if "image" in block.keys():
             aux = parse_image(block)
             list_blocks[i] = aux
-            if aux == "":
-                print(block["image"])
+#            if aux == "":
+#               print(block["image"])
         else:
             list_blocks[i] = parse_text(block)
 
@@ -103,52 +103,39 @@ def obtain_month_course(list_data: list) -> str:
 def standard_table(list_data: list[str | int], mes: str) -> dict[str, np.ndarray]:
 
     # Clean list data of unless data
-    a = " ".join(list(map(lambda x: " ".join(x), list_data))).split()
+    raw_data: list[str] = " ".join(list(map(lambda x: " ".join(str(x)), list_data))).split()
 
     # Encuentra donde inicia los datos de la tabla
-    idx = 1
-    c = 0
-    for i, value in enumerate(a):
-        if value.isnumeric() and a[i+1].isalpha():
-            if int(value) == idx:
-                c += i
-                break
-
-    matrix_dict: dict[str, np.ndarray] = {}
-    name: list[str] = []
-    data: list[int] = []
-    metadata: int = 0
-    idx: int = 1
-
-    for element in a[c:]:
-        if len(name) == 0:
-            # element o es el nombre o el indice
-            if element.isalpha():
-                name.append(element)
+    meta_data = []
+    i = 0
+    while i < len(raw_data):
+        element: str = raw_data[i]
+        if element != []:
+            if element.isnumeric() or element in ["-1","-2","-3","-5"]:
+                if len(element) == 1:
+                    meta_data.append(int(element))
+                elif element.isalpha():
+                    meta_data.append(" ".join(element[1:]))
+        i += 1
+    # Si la lista esta bien creada
+    dict_tabla: dict[str, np.ndarray] = dict()
+    list_aux = []
+    key_aux = ""
+    for value in meta_data:
+        if type(value) == int:
+            list_aux.append(value)
+        elif type(value) == str:
+            if key_aux == "":
+                key_aux = value
             else:
-                # element es el indice
-                if idx != int(element):
-                    # No hay más datos que extraer en la tabla
-                    break
-        else:
-            if len(data) == PARSE_STR_MONTH_TO_DATA[mes][1]:
-                matrix_dict[" ".join(name.copy())] = np.array(data.copy())
-                name = []
-                data = []
-                idx += 1
-                metadata = 0
-                # Hay elementos que faltan por extraer
-            elif len(element) == 1 and element.isnumeric():
-                # es "1" o "0"
-                data.append(int(element))
-                metadata += int(element)
+                dict_tabla[key_aux] = np.array(list_aux.copy(), dtype="int8")
+                list_aux.clear()
+                key_aux = value
+    for key, value in dict_tabla.items():
+        dict_tabla[key] = np.delete(value,-1)
 
-            elif element[1:].isnumeric():
-                data.append(int(element))
-            else:
-                name.append(element)
     # List data clean
-    return matrix_dict
+    return dict_tabla
 
 
 def extract_info_table(dict_tabla: dict[str, np.ndarray[int]], doc_month: str) -> pd.DataFrame:
@@ -162,6 +149,39 @@ def extract_info_table(dict_tabla: dict[str, np.ndarray[int]], doc_month: str) -
                               for i in range(PARSE_STR_MONTH_TO_DATA[doc_month][1])])
     return df
 
+def parse_table(list_data, month):
+    data_process = " ".join(list(map(lambda x: " ".join(x),list_data))).split()
+
+    # Encuentra donde inicia los datos de la tabla
+    c = 0
+    for i,value in enumerate(data_process):
+        if value.isnumeric() and data_process[i+1].isalpha():
+            if int(value) == 1:
+                c+=i
+                break
+    matrix = {}
+    data = []
+    name = []
+    n_days = PARSE_STR_MONTH_TO_DATA[month.title()][1]
+
+    for value in data_process[(c+1):]:
+
+        if len(data) == n_days:
+            matrix[" ".join(name.copy())] = np.array(data.copy())
+            name.clear()
+            data.clear()    
+
+        elif len(name) != 0 and value in ["-5","-3","-2","-1","0","1"]:
+            data.append(value)
+
+        elif value.isalpha() and value not in ["-5","-3","-2","-1"]:
+            name.append(value)
+
+    df = pd.DataFrame(matrix).T.reset_index()
+    
+    df.columns = np.array(["Alumno"]+[date(2022, 4, 1)+timedelta(days=i)
+                              for i in range(PARSE_STR_MONTH_TO_DATA[month.title()][1])])
+    return df
 
 def parse_format1(list_blocks_parsed: list[str | int]) -> pd.DataFrame:
 
