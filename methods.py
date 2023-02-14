@@ -215,4 +215,4 @@ def parse_format3(list_blocks_parsed: list[str | int], rbd: int, mes: str) -> pd
 
     print(6)
 
-    return table.assign(RBD=rbd)
+    return table.assign(RBD=rbd, RUT="")
