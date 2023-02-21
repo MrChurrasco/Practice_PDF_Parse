@@ -1,27 +1,29 @@
 from methods import *
-from pathlib import Path
-import os
 
-home = Path(os.getcwd())
 
-dir_format1 = [(path, str(path).split("\\")[-2:]) for path in Path(home,"Asistencia SIGE","Marzo-Nov","Formato 1").glob("**/*.pdf")]
-
-dir_format2 = [(path, str(path).split("\\")[-2:] ) for path in Path(home,"Asistencia SIGE","Marzo-Nov","Formato 2").glob("**/*.pdf")]
-
-dir_format3 = [(path, str(path).split("\\")[-2:] ) for path in Path(home,"Asistencia SIGE","Marzo-Nov","Formato 3").glob("**/*.pdf")]
-
-## TEST FOMARTO
+## TEST Unificación de filas si hacen alusión al mismo alumno
 def main():
-    for directory, name in [(dir_format1,"Formato 1"),(dir_format2,"Formato 2"), (dir_format3,"Formato 3")]:
-        for dir_pdf, [rbd, name_pdf] in directory:
+    test_dictA = {"Alumno": ["alumn1",
+                            "alumn2A",
+                            "alumn2A"],
+                 "c1": [1,-5,0],
+                 "c2": [1, 0,-5],
+                 "c3": [0,-5,1],
+                 "c4": [0,-5,0]
+                 }
+    test_dictB = {"Alumno": ["alumn1",
+                            "alumn2A"],
+                 "c1": [1, 0],
+                 "c2": [1, 0],
+                 "c3": [0, 1],
+                 "c4": [0, 0]
+                 }
+    test_dfA = pd.DataFrame(test_dictA)
+    test_dfB = pd.DataFrame(test_dictB)
+    
+    assert test_dfB.equals(fix_names(test_dfA)), f"La función fix_names no unifica los alumnos con el mismo nombre en una misma fila"
 
-            doc_pdf = fitz.open(dir_pdf)
-            try:
-                parse_format1(doc_pdf)
-            except:
-                assert False, f"\nEl documento del formato: {name} de RBD: {rbd}\ny de nombre: {name_pdf} no esta siendo leído correctamente.\nRevise el archivo de path:\n{dir_pdf}"
-
-        print(f"Los archivos del {name} están digitalizados")
+    print(f"Los archivos del {name} están digitalizados")
 
     print("Todo salió genial!")
 

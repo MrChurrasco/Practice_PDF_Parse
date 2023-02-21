@@ -130,4 +130,5 @@ dmypy.json
 
 #Archivos con datos
 *.xlsx
+*.csv
 Informe Avance/
